@@ -1,0 +1,17 @@
+name: customer_support_triage
+version: 1.0.0
+description: "Real-world customer support ticket triage and resolution environment. The agent must read incoming tickets, query the internal knowledge base, reply to customers, or escalate critical issues before closing the tickets."
+type: environment
+action_space: schema.Action
+observation_space: schema.Observation
+reward: schema.Reward
+tasks:
+  - id: easy
+    difficulty: easy
+    description: "Triage a single critical server outage ticket by escalating it."
+  - id: medium
+    difficulty: medium
+    description: "Resolve password and refund questions using the Knowledge Base and close them."
+  - id: hard
+    difficulty: hard
+    description: "Handle a mixed queue of 3 critical/standard tickets efficiently without errors or guessing."
