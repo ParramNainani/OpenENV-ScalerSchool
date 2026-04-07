@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, Body
-from schema import Action, Observation, Reward, StepResponse, Ticket, TaskDef, InferenceRequest, InferenceResult
+from .schema import Action, Observation, Reward, StepResponse, Ticket, TaskDef, InferenceRequest, InferenceResult
 import copy
 from typing import Literal, List, Dict
 import json
@@ -242,6 +242,6 @@ Respond ONLY with valid JSON. No markdown, no conversational text."""
         log=execution_log
     )
 
-def start_server():
+def main():
     import uvicorn
-    uvicorn.run("app:app", host="0.0.0.0", port=7860)
+    uvicorn.run("server.app:app", host="0.0.0.0", port=7860)
