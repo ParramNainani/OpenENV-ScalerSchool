@@ -18,6 +18,17 @@ A real-world `OpenEnv` environment simulating a tier-1 customer support inbox. A
 - **FastAPI Backend**: Fully serves the `step()`, `reset()`, `state()` interface as an HTTP app.
 - **Hugging Face Ready**: Built-in `Dockerfile` listening on port `7860`.
 
+## 🌐 Interactive API Docs & Cloud Inference
+This environment is live on Hugging Face Spaces! You can test actions or run full LLM inference loops directly from your browser:
+
+👉 **[Live API Documentation (Swagger UI)](https://huggingface.co/spaces/InstaGril/OpenENV-ScalerSchool/api/docs)**
+
+1. Open the [API Docs](https://huggingface.co/spaces/InstaGril/OpenENV-ScalerSchool/api/docs).
+2. Locate the **`POST /run_inference`** endpoint.
+3. Click **"Try it out"**.
+4. Enter your LLM credentials (e.g., Groq or OpenAI `api_key`).
+5. Click **"Execute"** to watch the automated LLM process all tickets in real-time!
+
 ## Setup & Deployment (Docker)
 ```bash
 docker build -t openenv_support .
