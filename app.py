@@ -241,3 +241,7 @@ Respond ONLY with valid JSON. No markdown, no conversational text."""
         total_reward=total_reward,
         log=execution_log
     )
+
+def start_server():
+    import uvicorn
+    uvicorn.run("app:app", host="0.0.0.0", port=7860)
