@@ -14,7 +14,7 @@ base_url = os.environ.get("API_BASE_URL", "https://api.openai.com/v1")
 model_name = os.environ.get("MODEL_NAME", "gpt-4")
 api_key = os.environ.get("HF_TOKEN") or os.environ.get("OPENAI_API_KEY", "")
 
-ENV_URL = "http://127.0.0.1:7860"
+ENV_URL = os.environ.get("OPENENV_URL", "https://instagril-openenv-scalerschool.hf.space")
 
 client = OpenAI(base_url=base_url, api_key=api_key)
 
