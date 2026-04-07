@@ -31,16 +31,32 @@ def llm_choose_action(messages):
         content = re.sub(r"```$", "", content).strip()
         return json.loads(content)
     except Exception as e:
-        print(f"Exception calling LLM: {e}")
         # fallback action
         return {"action_type": "search_kb", "query": "hello"}
 
+def log_start(task: str, env: str, model: str):
+    print(f"[START] task={task} env={env} model={model}", flush=True)
+
+def log_step(step: int, action: str, reward: float, done: bool, error: str):
+    error_val = error if error else "null"
+    done_val = str(done).lower()
+    print(
+        f"[STEP] step={step} action={action} reward={reward:.2f} done={done_val} error={error_val}",
+        flush=True,
+    )
+
+def log_end(success: bool, steps: int, score: float, rewards: list):
+    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
+    print(f"[END] success={str(success).lower()} steps={steps} score={score:.3f} rewards={rewards_str}", flush=True)
+
 def run_task(task_id):
-    print(f"\n[START] Task: {task_id}")
     obs = requests.post(f"{ENV_URL}/reset", params={"task_id": task_id}).json()
     done = False
     step = 0
     total_reward = 0.0
+    rewards = []
+    
+    log_start(task=task_id, env="support_triage", model=model_name)
 
     # Give the agent a memory (message history) so it doesn't repeat itself
     system_prompt = """You are an AI customer support agent resolving a queue of tickets. 
@@ -63,13 +79,10 @@ Respond ONLY with valid JSON. No markdown, no conversational text."""
     messages = [{"role": "system", "content": system_prompt}]
 
     while not done and step < 15:
-        print(f"[STEP] {step}")
-        
         # Add the current observation to the agent's memory
         messages.append({"role": "user", "content": f"Observation: {json.dumps(obs)}\nWhat is your next action JSON?"})
         
         action = llm_choose_action(messages)
-        print(f"Action: {json.dumps(action)}")
         
         # Add the agent's own action to its memory so it remembers what it did
         messages.append({"role": "assistant", "content": json.dumps(action)})
@@ -79,17 +92,15 @@ Respond ONLY with valid JSON. No markdown, no conversational text."""
         rew = resp["reward"]["value"]
         done = resp["done"]
         total_reward += rew
+        rewards.append(rew)
         
-        print(f"Observation: {obs}")
-        print(f"Reward: {rew}")
         step += 1
+        log_step(step=step, action=json.dumps(action), reward=rew, done=done, error=obs.get("error"))
         time.sleep(1)
 
-    print(f"[END] Task {task_id} complete. Total Score: {total_reward}\n")
+    success = total_reward > 0
+    log_end(success=success, steps=step, score=total_reward, rewards=rewards)
 
 if __name__ == "__main__":
-    if "API_BASE_URL" not in os.environ or "MODEL_NAME" not in os.environ:
-        print("Warning: Ensure API_BASE_URL and MODEL_NAME are set. Using defaults.")
-        
     for task in ["easy", "medium", "hard"]:
         run_task(task)
