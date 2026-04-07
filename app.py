@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Body
 from schema import Action, Observation, Reward, StepResponse, Ticket, TaskDef
 import copy
 
@@ -61,8 +61,34 @@ def reset(task_id: str = "easy"):
         open_tickets=list(current_state["tickets"].keys())
     )
 
-@app.post("/step", response_model=StepResponse)
-def step(action: Action):
+@app.post("/step", response_model=StepResponse, summary="Take an environment step", description="Executes an action in the support triage environment and advances the state.")
+def step(
+    action: Action = Body(
+        ...,
+        openapi_examples={
+            "read_ticket": {
+                "summary": "Read Ticket",
+                "value": {"action_type": "read_ticket", "ticket_id": "T1"}
+            },
+            "search_kb": {
+                "summary": "Search KB",
+                "value": {"action_type": "search_kb", "query": "password reset"}
+            },
+            "reply": {
+                "summary": "Reply to Customer",
+                "value": {"action_type": "reply", "ticket_id": "T1", "message": "Here is how to reset your password..."}
+            },
+            "escalate": {
+                "summary": "Escalate Ticket",
+                "value": {"action_type": "escalate", "ticket_id": "T1"}
+            },
+            "close": {
+                "summary": "Close Ticket",
+                "value": {"action_type": "close", "ticket_id": "T1"}
+            }
+        }
+    )
+):
     global steps_taken, current_state
     steps_taken += 1
     
