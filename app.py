@@ -36,7 +36,7 @@ TASKS = {
 }
 
 current_task = "easy"
-current_state = {}
+current_state = copy.deepcopy(TASKS["easy"])
 steps_taken = 0
 MAX_STEPS = 15
 
