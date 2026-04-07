@@ -1,6 +1,11 @@
 from fastapi import FastAPI, HTTPException, Body
-from schema import Action, Observation, Reward, StepResponse, Ticket, TaskDef
+from schema import Action, Observation, Reward, StepResponse, Ticket, TaskDef, InferenceRequest, InferenceResult
 import copy
+from typing import Literal, List, Dict
+import json
+import re
+from openai import OpenAI
+import os
 
 app = FastAPI(title="OpenEnv - Customer Support Triage", description="Simulates a real-world customer support queue.")
 
@@ -149,4 +154,90 @@ def step(
         reward=reward,
         done=done,
         info={"steps": str(steps_taken)}
+    )
+
+@app.post("/run_inference", response_model=InferenceResult, summary="Run automated LLM inference", tags=["Inference"])
+def run_inference(req: InferenceRequest):
+    # Retrieve the API key
+    api_key = req.api_key or os.environ.get("HF_TOKEN") or os.environ.get("OPENAI_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=400, detail="Missing API Key. Provide it in the request or set HF_TOKEN environment variable.")
+    
+    client = OpenAI(base_url=req.base_url, api_key=api_key)
+    
+    def llm_choose_action(msgs):
+        try:
+            res = client.chat.completions.create(
+                model=req.model_name,
+                messages=msgs,
+                max_tokens=150
+            )
+            content = res.choices[0].message.content.strip()
+            content = re.sub(r"^```(json)?", "", content, flags=re.IGNORECASE).strip()
+            content = re.sub(r"```$", "", content).strip()
+            return json.loads(content)
+        except Exception as e:
+            return {"action_type": "search_kb", "query": f"fallback_error: {str(e)}"}
+
+    obs = reset(task_id=req.task_id)
+    # Re-encode to dict to match client-side logic
+    obs_dict = {"result": obs.result, "open_tickets": obs.open_tickets, "error": obs.error}
+    
+    done = False
+    step_num = 0
+    total_reward = 0.0
+    execution_log = []
+
+    system_prompt = """You are an AI customer support agent resolving a queue of tickets. 
+Your goal is to clear the 'open_tickets' list by taking actions on them.
+For each ticket you MUST:
+1. read_ticket to understand it.
+2. If unsure, search_kb for policy.
+3. reply to or escalate the ticket to resolve it.
+4. close the ticket exactly once after resolving it.
+
+Available actions (Return exactly one as a raw JSON object):
+{"action_type": "search_kb", "query": "YOUR_QUERY"}
+{"action_type": "read_ticket", "ticket_id": "T1"}
+{"action_type": "reply", "ticket_id": "T1", "message": "YOUR_MSG"}
+{"action_type": "escalate", "ticket_id": "T1"}
+{"action_type": "close", "ticket_id": "T1"}
+
+Respond ONLY with valid JSON. No markdown, no conversational text."""
+
+    messages = [{"role": "system", "content": system_prompt}]
+
+    while not done and step_num < 15:
+        messages.append({"role": "user", "content": f"Observation: {json.dumps(obs_dict)}\nWhat is your next action JSON?"})
+        
+        action_dict = llm_choose_action(messages)
+        messages.append({"role": "assistant", "content": json.dumps(action_dict)})
+        
+        # Build action properly (filter out extra keys internally)
+        action_obj = Action(**action_dict)
+        
+        step_response = step(action=action_obj)
+        obs_dict = {
+            "result": step_response.observation.result, 
+            "open_tickets": step_response.observation.open_tickets, 
+            "error": step_response.observation.error
+        }
+        rew = step_response.reward.value
+        done = step_response.done
+        total_reward += rew
+        
+        execution_log.append({
+            "step": step_num,
+            "action": action_dict,
+            "observation": obs_dict,
+            "reward": rew,
+            "done": done
+        })
+        step_num += 1
+
+    return InferenceResult(
+        task_id=req.task_id,
+        total_steps=step_num,
+        total_reward=total_reward,
+        log=execution_log
     )
