@@ -21,9 +21,9 @@ A real-world `OpenEnv` environment simulating a tier-1 customer support inbox. A
 ## 🌐 Interactive API Docs & Cloud Inference
 This environment is live on Hugging Face Spaces! You can test actions or run full LLM inference loops directly from your browser:
 
-👉 **[Live API Documentation (Swagger UI)](https://huggingface.co/spaces/InstaGril/OpenENV-ScalerSchool/api/docs)**
+👉 **[Live API Documentation (Swagger UI)](https://instagril-openenv-scalerschool.hf.space/docs)**
 
-1. Open the [API Docs](https://huggingface.co/spaces/InstaGril/OpenENV-ScalerSchool/api/docs).
+1. Open the [API Docs](https://instagril-openenv-scalerschool.hf.space/docs).
 2. Locate the **`POST /run_inference`** endpoint.
 3. Click **"Try it out"**.
 4. Enter your LLM credentials (e.g., Groq or OpenAI `api_key`).
