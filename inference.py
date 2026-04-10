@@ -1,106 +1,81 @@
 import os
 import json
-import time
-import requests
 import re
+import requests
 from openai import OpenAI
 from dotenv import load_dotenv
 
-# Load variables from .env file securely
 load_dotenv()
 
-# Required Env Vars
-base_url = os.environ.get("API_BASE_URL", "https://api.openai.com/v1")
-model_name = os.environ.get("MODEL_NAME", "gpt-4")
-api_key = os.environ.get("HF_TOKEN") or os.environ.get("OPENAI_API_KEY", "")
+API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
+MODEL_NAME = os.getenv("MODEL_NAME") or "Qwen/Qwen2.5-72B-Instruct"
+API_KEY = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY", "")
+ENV_URL = os.getenv("OPENENV_URL", "http://localhost:7860")
 
-ENV_URL = os.environ.get("OPENENV_URL", "https://instagril-openenv-scalerschool.hf.space")
+client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
 
-client = OpenAI(base_url=base_url, api_key=api_key)
+SYSTEM_PROMPT = """You are an AI customer support agent for an e-commerce company.
+AVAILABLE ACTIONS (exactly ONE JSON object per turn):
+1. {"action_type": "search_kb", "query": "..."}
+2. {"action_type": "lookup_order", "ticket_id": "TKT-XXX"}
+3. {"action_type": "reply", "ticket_id": "TKT-XXX", "message": "..."}
+4. {"action_type": "ask_info", "ticket_id": "TKT-XXX", "message": "..."}
+5. {"action_type": "refund", "ticket_id": "TKT-XXX"}
+6. {"action_type": "replace", "ticket_id": "TKT-XXX"}
+7. {"action_type": "escalate", "ticket_id": "TKT-XXX", "reason": "..."}
+8. {"action_type": "close", "ticket_id": "TKT-XXX"}
 
-def llm_choose_action(messages):
+WORKFLOW:
+1. Lookup order.
+2. Search KB for policies.
+3. Reply empathetically.
+4. Execute resolution (refund, replace, escalate).
+5. Close ticket.
+Do NOT issue refunds for items that don't fit (without return) or are simply late/in-transit.
+Only respond with a raw JSON object."""
+
+def log_start(task: str): print(f"[START] task={task} env=customer_support_resolution model={MODEL_NAME}")
+def log_step(step, action, reward, done, error): print(f"[STEP] step={step} action={action} reward={reward:.2f} done={str(done).lower()} error={error or 'null'}")
+def log_end(success, steps, score, rewards): print(f"[END] success={str(success).lower()} steps={steps} score={score:.3f} rewards={','.join(f'{r:.2f}' for r in rewards)}")
+
+def llm_choose_action(messages: list) -> dict:
     try:
-        res = client.chat.completions.create(
-            model=model_name,
-            messages=messages,
-            max_tokens=150
-        )
-        content = res.choices[0].message.content.strip()
-        # Clean up potential markdown formatting from HF/Groq models
-        content = re.sub(r"^```(json)?", "", content, flags=re.IGNORECASE).strip()
-        content = re.sub(r"```$", "", content).strip()
+        res = client.chat.completions.create(model=MODEL_NAME, messages=messages, max_tokens=300, temperature=0.2)
+        content = re.sub(r"^```(?:json)?|```$", "", res.choices[0].message.content.strip(), flags=re.IGNORECASE).strip()
+        if not content.startswith("{"):
+            match = re.search(r'\{[^{}]*\}', content)
+            if match: content = match.group()
         return json.loads(content)
     except Exception as e:
-        # fallback action
-        return {"action_type": "search_kb", "query": "hello"}
+        return {"action_type": "search_kb", "query": "help"}
 
-def log_start(task: str, env: str, model: str):
-    print(f"[START] task={task} env={env} model={model}", flush=True)
-
-def log_step(step: int, action: str, reward: float, done: bool, error: str):
-    error_val = error if error else "null"
-    done_val = str(done).lower()
-    print(
-        f"[STEP] step={step} action={action} reward={reward:.2f} done={done_val} error={error_val}",
-        flush=True,
-    )
-
-def log_end(success: bool, steps: int, score: float, rewards: list):
-    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
-    print(f"[END] success={str(success).lower()} steps={steps} score={score:.3f} rewards={rewards_str}", flush=True)
-
-def run_task(task_id):
+def run_task(task_id: str):
     obs = requests.post(f"{ENV_URL}/reset", params={"task_id": task_id}).json()
-    done = False
-    step = 0
-    total_reward = 0.0
-    rewards = []
+    log_start(task_id)
     
-    log_start(task=task_id, env="support_triage", model=model_name)
-
-    # Give the agent a memory (message history) so it doesn't repeat itself
-    system_prompt = """You are an AI customer support agent resolving a queue of tickets. 
-Your goal is to clear the 'open_tickets' list by taking actions on them.
-For each ticket you MUST:
-1. read_ticket to understand it.
-2. If unsure, search_kb for policy.
-3. reply to or escalate the ticket to resolve it.
-4. close the ticket exactly once after resolving it.
-
-Available actions (Return exactly one as a raw JSON object):
-{"action_type": "search_kb", "query": "YOUR_QUERY"}
-{"action_type": "read_ticket", "ticket_id": "T1"}
-{"action_type": "reply", "ticket_id": "T1", "message": "YOUR_MSG"}
-{"action_type": "escalate", "ticket_id": "T1"}
-{"action_type": "close", "ticket_id": "T1"}
-
-Respond ONLY with valid JSON. No markdown, no conversational text."""
-
-    messages = [{"role": "system", "content": system_prompt}]
-
-    while not done and step < 15:
-        # Add the current observation to the agent's memory
-        messages.append({"role": "user", "content": f"Observation: {json.dumps(obs)}\nWhat is your next action JSON?"})
-        
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    rewards = []
+    steps = 0
+    done = False
+    
+    while not done and steps < 25:
+        messages.append({"role": "user", "content": f"Observation:\n{json.dumps(obs, indent=2)}\n\nNext action (JSON only):"})
         action = llm_choose_action(messages)
-        
-        # Add the agent's own action to its memory so it remembers what it did
         messages.append({"role": "assistant", "content": json.dumps(action)})
         
-        resp = requests.post(f"{ENV_URL}/step", json=action).json()
-        obs = resp["observation"]
-        rew = resp["reward"]["value"]
-        done = resp["done"]
-        total_reward += rew
-        rewards.append(rew)
+        try:
+            resp = requests.post(f"{ENV_URL}/step", json=action).json()
+        except: break
         
-        step += 1
-        log_step(step=step, action=json.dumps(action), reward=rew, done=done, error=obs.get("error"))
-        time.sleep(1)
+        obs, rew, done = resp["observation"], resp["reward"]["value"], resp["done"]
+        rewards.append(rew)
+        steps += 1
+        log_step(steps, json.dumps(action), rew, done, obs.get("error"))
 
-    success = total_reward > 0
-    log_end(success=success, steps=step, score=total_reward, rewards=rewards)
+    score = max(0.0, min(1.0, sum(rewards)))
+    log_end(success=score > 0.1, steps=steps, score=score, rewards=rewards)
 
 if __name__ == "__main__":
-    for task in ["easy", "medium", "hard"]:
-        run_task(task)
+    for t in ["easy", "medium", "hard"]:
+        run_task(t)
+        print("")

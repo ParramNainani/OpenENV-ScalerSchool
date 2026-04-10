@@ -1,17 +1,59 @@
-name: customer_support_triage
+name: customer_support_resolution
 version: 1.0.0
-description: "Real-world customer support ticket triage and resolution environment. The agent must read incoming tickets, query the internal knowledge base, reply to customers, or escalate critical issues before closing the tickets."
+description: >
+  Real-world e-commerce customer support resolution environment. Agents must
+  understand customer intent, consult internal knowledge base policies, handle
+  emotional customers with proper tone, and take correct resolution actions
+  (reply, refund, replace, escalate) while avoiding common traps like
+  unnecessary refunds or premature ticket closure.
 type: environment
-action_space: schema.Action
-observation_space: schema.Observation
-reward: schema.Reward
+
+action_space:
+  type: "object"
+  fields:
+    - action_type: "reply | refund | replace | escalate | ask_info | lookup_order | search_kb | close"
+    - ticket_id: "string (optional)"
+    - message: "string (optional)"
+    - query: "string (optional)"
+    - reason: "string (optional)"
+
+observation_space:
+  type: "object"
+  fields:
+    - result: "string — description of what happened"
+    - active_tickets: "list[string] — IDs of open tickets"
+    - current_ticket: "object (optional) — current ticket details"
+    - order_details: "object (optional) — order lookup results"
+    - kb_results: "list[string] (optional) — knowledge base search results"
+    - customer_sentiment: "string (optional) — how the customer is reacting"
+    - error: "string (optional) — error message if action failed"
+
+reward_range:
+  min: 0.0
+  max: 1.0
+
 tasks:
   - id: easy
     difficulty: easy
-    description: "Triage a single critical server outage ticket by escalating it."
+    description: >
+      A polite customer asks about their order status. Look up the order,
+      provide tracking information, and close the ticket. Do NOT refund or
+      escalate — the order is within its normal delivery window.
+
   - id: medium
     difficulty: medium
-    description: "Resolve password and refund questions using the Knowledge Base and close them."
+    description: >
+      Two tickets: one wrong-item complaint needing a replacement offer
+      (NOT a refund), and one cancellation request for a still-processing order
+      (refund is correct here). Agent must consult KB policies and apply the
+      right resolution for each.
+
   - id: hard
     difficulty: hard
-    description: "Handle a mixed queue of 3 critical/standard tickets efficiently without errors or guessing."
+    description: >
+      Three challenging tickets: an angry customer with a late delivery AND
+      defective item demanding full refund (trap: only partial replacement is
+      correct), a frustrated customer with a damaged chair needing replacement,
+      and an irate customer demanding to speak to a manager about ill-fitting
+      shoes. Agent must navigate emotional customers, policy edge cases, and
+      avoid unnecessary refunds.
