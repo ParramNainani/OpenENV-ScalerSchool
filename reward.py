@@ -13,7 +13,7 @@ def grade_episode(task_def: dict, action_log: List[dict], ticket_states: Dict[st
         total_ticket_score += ticket_score
 
     final_score = total_ticket_score / num_tickets if num_tickets > 0 else 0.0
-    return max(0.0, min(1.0, final_score))
+    return max(0.01, min(0.99, final_score))
 
 def _grade_ticket(ticket_id: str, criteria: dict, action_log: List[dict], ticket_state: dict) -> float:
     score = 0.0

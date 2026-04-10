@@ -59,10 +59,10 @@ class CustomerSupportEnvironment:
             final_score = grade_episode(self._task_def, self._action_log, self._tickets)
             if all_resolved:
                 blended = 0.3 * step_reward + 0.7 * final_score
-                reward = Reward(value=round(max(0.0, min(1.0, blended)), 4), reason=f"Episode complete. Score: {final_score:.3f}")
+                reward = Reward(value=round(max(0.01, min(0.99, blended)), 4), reason=f"Episode complete. Score: {final_score:.3f}")
                 observation.result += f"\n\n🎉 All tickets resolved! Score: {final_score:.3f}"
             else:
-                reward = Reward(value=round(max(0.0, min(1.0, final_score * 0.5)), 4), reason=f"Max steps. Score: {final_score:.3f}")
+                reward = Reward(value=round(max(0.01, min(0.99, final_score * 0.5)), 4), reason=f"Max steps. Score: {final_score:.3f}")
                 observation.result += f"\n\n⏰ Max steps reached. Score: {final_score:.3f}"
         else:
             reward = Reward(value=round(max(-1.0, min(1.0, step_reward)), 4), reason=self._get_reward_reason(action_dict, step_reward))

@@ -72,7 +72,7 @@ def run_task(task_id: str):
         steps += 1
         log_step(steps, json.dumps(action), rew, done, obs.get("error"))
 
-    score = max(0.0, min(1.0, sum(rewards)))
+    score = max(0.01, min(0.99, sum(rewards)))
     log_end(success=score > 0.1, steps=steps, score=score, rewards=rewards)
 
 if __name__ == "__main__":
