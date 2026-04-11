@@ -2,6 +2,7 @@ import gradio as gr
 from dataclasses import asdict
 from environment import CustomerSupportEnv
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 import uvicorn
 
@@ -11,6 +12,7 @@ api_env = CustomerSupportEnv(task_level="hard")
 class StepRequest(BaseModel):
     action: str
 
+# These API endpoints are required by openenv validation
 @app.post("/reset")
 def reset_env():
     result = api_env.reset()
@@ -50,7 +52,7 @@ def format_ticket_markdown(state):
     """
 
 def create_app():
-    # Use Gradio's native Soft theme with indigo/slate colors for a clean modern look without custom CSS
+    # Use Gradio's native Soft theme with indigo/slate colors for a clean modern look
     theme = gr.themes.Soft(
         primary_hue="indigo",
         neutral_hue="slate",
@@ -115,7 +117,13 @@ def create_app():
     return demo
 
 gradio_app = create_app()
-app = gr.mount_gradio_app(app, gradio_app, path="/")
+
+# Mount Gradio to /ui to avoid static asset 404 bugs on Hugging Face Spaces when mounted at root
+app = gr.mount_gradio_app(app, gradio_app, path="/ui")
+
+@app.get("/")
+def redirect_to_ui():
+    return RedirectResponse(url="/ui")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=7860)
