@@ -9,7 +9,7 @@ description = "AI Customer Support Triage and Resolution OpenEnv Environment"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "gradio>=4.0",
+    "gradio==4.44.1",
     "numpy",
     "pandas",
     "pyyaml",

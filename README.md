@@ -3,9 +3,8 @@ title: AI Customer Support Triage
 emoji: 🛒
 colorFrom: blue
 colorTo: green
-sdk: gradio
-python_version: "3.10"
-app_file: app.py
+sdk: docker
+app_port: 7860
 pinned: false
 ---
 
@@ -79,6 +78,6 @@ docker run support-env
 ### How to Deploy to Hugging Face
 This repository is pre-configured with a user-friendly Gradio web application explicitly designed for **Hugging Face Spaces**.
 1. Navigate to your Hugging Face account and create a new Space.
-2. Choose **Gradio** as the Space SDK.
+2. Choose **Docker** as the Space SDK.
 3. Upload all the files inside this repository to your Space.
-4. The space will build the environment and automatically map it to the interactive `app.py` script. The UI displays the current state, action interactions, and subsequent reward logic securely!
+4. The space will build the environment via `Dockerfile` and automatically map it to the interactive `app.py` script.
