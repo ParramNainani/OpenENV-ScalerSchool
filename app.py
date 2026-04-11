@@ -29,169 +29,70 @@ TICKET_TYPE_LABELS = {
     "billing_error": "💳 Billing Error"
 }
 
-# The CSS is injected directly into the Gradio DOM as raw HTML to bypass Gradio 6/HuggingFace stripping constraints
-custom_css = """
-<style>
-body {
-    background: linear-gradient(135deg, #0f172a, #1e293b) !important;
-    color: #e2e8f0 !important;
-    font-family: 'Inter', sans-serif !important;
-}
-.gradio-container {
-    max-width: 1000px !important;
-    margin: 0 auto !important;
-    border: none !important;
-}
-.ticket-card {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 16px;
-    padding: 24px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(10px);
-    margin-bottom: 20px;
-    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-.ticket-card:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 15px 50px -15px rgba(0, 0, 0, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-}
-.ticket-header {
-    font-size: 1.8rem;
-    font-weight: 800;
-    margin-bottom: 20px;
-    color: #38bdf8;
-    text-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-.ticket-stat {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-    font-size: 1.15rem;
-    padding: 10px 15px;
-    border-radius: 8px;
-    background: rgba(0,0,0,0.3);
-    border: 1px solid rgba(255,255,255,0.05);
-}
-.stat-label {
-    color: #cbd5e1;
-    font-weight: 500;
-}
-.stat-value {
-    font-size: 1.25rem;
-    font-weight: 700;
-    padding: 4px 10px;
-    border-radius: 6px;
-}
-.glass-panel {
-    background: rgba(255, 255, 255, 0.03) !important;
-    border-radius: 12px !important;
-    padding: 20px !important;
-    border: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-.resolve-btn { background: linear-gradient(to right, #10b981, #059669) !important; color: white !important; border: none !important; }
-.escalate-btn { background: linear-gradient(to right, #ef4444, #dc2626) !important; color: white !important; border: none !important; }
-.investigate-btn { background: linear-gradient(to right, #3b82f6, #2563eb) !important; color: white !important; border: none !important; }
-.action-btn {
-    font-weight: 600 !important;
-    font-size: 1.1rem !important;
-    transition: all 0.3s ease !important;
-    padding: 15px !important;
-    border-radius: 8px !important;
-}
-.action-btn:hover {
-    transform: scale(1.03) !important;
-    box-shadow: 0 0 20px rgba(255, 255, 255, 0.2) !important;
-}
-.title-text {
-    text-align: center;
-    background: linear-gradient(to right, #38bdf8, #818cf8, #c084fc);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    font-size: 2.8rem;
-    font-weight: 900;
-    margin-bottom: 5px;
-    padding-top: 20px;
-}
-.subtitle-text {
-    text-align: center;
-    color: #94a3b8;
-    margin-bottom: 30px;
-    font-size: 1.2rem;
-}
-</style>
-"""
-
-def generate_html_card(state):
+def format_ticket_markdown(state):
+    """Formats the state into a clean Markdown list with status indicators"""
     ticket_label = TICKET_TYPE_LABELS.get(state["ticket_type"], state["ticket_type"])
     sentiment = state["customer_sentiment"]
     severity = state["issue_severity"]
     wait_time = state["wait_time_hours"]
     
-    s_bg = "rgba(239, 68, 68, 0.2)" if sentiment >= 8 else "rgba(234, 179, 8, 0.2)" if sentiment >= 5 else "rgba(34, 197, 94, 0.2)"
-    s_col = "#fca5a5" if sentiment >= 8 else "#fde047" if sentiment >= 5 else "#86efac"
-    
-    sev_bg = "rgba(239, 68, 68, 0.2)" if severity >= 8 else "rgba(234, 179, 8, 0.2)" if severity >= 5 else "rgba(34, 197, 94, 0.2)"
-    sev_col = "#fca5a5" if severity >= 8 else "#fde047" if severity >= 5 else "#86efac"
-    
-    w_bg = "rgba(239, 68, 68, 0.2)" if wait_time >= 48 else "rgba(234, 179, 8, 0.2)" if wait_time >= 24 else "rgba(34, 197, 94, 0.2)"
-    w_col = "#fca5a5" if wait_time >= 48 else "#fde047" if wait_time >= 24 else "#86efac"
+    # Emojis for quick visual feedback
+    s_emoji = "🔴" if sentiment >= 8 else "🟡" if sentiment >= 5 else "🟢"
+    sev_emoji = "🔴" if severity >= 8 else "🟡" if severity >= 5 else "🟢"
+    w_emoji = "🔴" if wait_time >= 48 else "🟡" if wait_time >= 24 else "🟢"
 
     return f"""
-    <div class="ticket-card">
-        <div class="ticket-header">
-            {ticket_label}
-        </div>
-        <div class="ticket-stat">
-            <span class="stat-label">Customer Sentiment</span>
-            <span class="stat-value" style="background: {s_bg}; color: {s_col};">{sentiment} / 10</span>
-        </div>
-        <div class="ticket-stat">
-            <span class="stat-label">Issue Severity</span>
-            <span class="stat-value" style="background: {sev_bg}; color: {sev_col};">{severity} / 10</span>
-        </div>
-        <div class="ticket-stat" style="margin-bottom: 0;">
-            <span class="stat-label">Wait Time</span>
-            <span class="stat-value" style="background: {w_bg}; color: {w_col};">{wait_time} Hours</span>
-        </div>
-    </div>
+### {ticket_label}
+---
+* **Customer Sentiment:** {s_emoji} `{sentiment} / 10`
+* **Issue Severity:** {sev_emoji} `{severity} / 10`
+* **Wait Time:** {w_emoji} `{wait_time} Hours`
     """
 
 def create_app():
-    # Since Gradio 6 ignores css= in Blocks, we inject it manually to ensure HF Spaces picks it up natively
-    with gr.Blocks(theme=gr.themes.Base()) as demo:
-        gr.HTML(custom_css + "<div class='title-text'>AI Customer Support Triage</div>")
-        gr.HTML("<div class='subtitle-text'>Evaluate dynamic support tickets and choose the optimal action.</div>")
+    # Use Gradio's native Soft theme with indigo/slate colors for a clean modern look without custom CSS
+    theme = gr.themes.Soft(
+        primary_hue="indigo",
+        neutral_hue="slate",
+        font=[gr.themes.GoogleFont("Inter"), "ui-sans-serif", "system-ui", "sans-serif"]
+    )
+    
+    with gr.Blocks(theme=theme) as demo:
+        gr.Markdown(
+            """
+            # 🛒 AI Customer Support Triage
+            **Evaluate dynamic support tickets and choose the optimal action.**
+            Balance urgency, customer sentiment, and issue severity to maximize your reward.
+            """
+        )
         
         env_state = gr.State(CustomerSupportEnv(task_level="hard"))
         
         with gr.Row():
+            # Left Column (Live Feed)
             with gr.Column(scale=1):
                 gr.Markdown("### 📡 Live Feed")
-                ticket_html = gr.HTML()
+                with gr.Group():
+                    ticket_display = gr.Markdown("Loading next ticket...")
                 
+            # Right Column (Command Center)
             with gr.Column(scale=1):
                 gr.Markdown("### ⚡ Command Center")
-                with gr.Group(elem_classes=["glass-panel"]):
+                with gr.Group():
                     with gr.Row():
-                        resolve_btn = gr.Button("✅ Resolve", elem_classes=["action-btn", "resolve-btn"])
-                        investigate_btn = gr.Button("🔍 Investigate", elem_classes=["action-btn", "investigate-btn"])
+                        resolve_btn = gr.Button("✅ Resolve", variant="primary")
+                        investigate_btn = gr.Button("🔍 Investigate", variant="secondary")
                     with gr.Row():
-                        escalate_btn = gr.Button("🔺 Escalate", elem_classes=["action-btn", "escalate-btn"])
+                        escalate_btn = gr.Button("🔺 Escalate", variant="stop")
                 
                 gr.Markdown("### 📈 Evaluation Metrics")
-                with gr.Group(elem_classes=["glass-panel"]):
+                with gr.Group():
                     status_output = gr.Textbox(label="Agent Status", interactive=False)
                     reward_output = gr.Textbox(label="Last Decision Score (0.00 to 1.00)", interactive=False)
 
         def load_state(env):
             state = env.state()
-            return generate_html_card(state), "Awaiting Agent Decision...", "N/A"
+            return format_ticket_markdown(state), "Awaiting Agent Decision...", "N/A"
             
         def take_action(action, env):
             result = env.step(action)
@@ -201,13 +102,15 @@ def create_app():
             msg = f"{emoji} Ticket Action: {action.capitalize()}"
             reward_str = f"{result.reward:.2f}"
             
-            return generate_html_card(next_state), msg, reward_str, env
+            return format_ticket_markdown(next_state), msg, reward_str, env
 
-        demo.load(load_state, inputs=[env_state], outputs=[ticket_html, status_output, reward_output])
+        # Initial load assignments
+        demo.load(load_state, inputs=[env_state], outputs=[ticket_display, status_output, reward_output])
         
-        resolve_btn.click(lambda e: take_action("resolve", e), inputs=[env_state], outputs=[ticket_html, status_output, reward_output, env_state])
-        escalate_btn.click(lambda e: take_action("escalate", e), inputs=[env_state], outputs=[ticket_html, status_output, reward_output, env_state])
-        investigate_btn.click(lambda e: take_action("investigate", e), inputs=[env_state], outputs=[ticket_html, status_output, reward_output, env_state])
+        # Action button assignments
+        resolve_btn.click(lambda e: take_action("resolve", e), inputs=[env_state], outputs=[ticket_display, status_output, reward_output, env_state])
+        escalate_btn.click(lambda e: take_action("escalate", e), inputs=[env_state], outputs=[ticket_display, status_output, reward_output, env_state])
+        investigate_btn.click(lambda e: take_action("investigate", e), inputs=[env_state], outputs=[ticket_display, status_output, reward_output, env_state])
         
     return demo
 
