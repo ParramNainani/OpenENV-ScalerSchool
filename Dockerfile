@@ -7,9 +7,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Expose port 7860 for Hugging Face Spaces compatibility
-EXPOSE 7860
-
-ENV PYTHONPATH=/app
-
+# Run the API server
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]

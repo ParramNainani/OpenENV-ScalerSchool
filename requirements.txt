@@ -1,8 +1,8 @@
+gradio>=4.0
+numpy
+pandas
+pyyaml
+openai
 fastapi
 uvicorn
 pydantic
-openai
-requests
-python-dotenv
-gradio
-openenv-core>=0.2.0
