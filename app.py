@@ -72,6 +72,11 @@ def create_app():
         with gr.Row():
             # Left Column (Live Feed)
             with gr.Column(scale=1):
+                difficulty_selector = gr.Dropdown(
+                    choices=["easy", "medium", "hard"],
+                    value="hard",
+                    label="Environment Task Difficulty"
+                )
                 gr.Markdown("### 📡 Live Feed")
                 with gr.Group():
                     ticket_display = gr.Markdown("Loading next ticket...")
@@ -104,6 +109,13 @@ def create_app():
             reward_str = f"{result.reward:.2f}"
             
             return format_ticket_markdown(next_state), msg, reward_str, env
+            
+        def change_difficulty(level):
+            # Create a new environment instance with the new difficulty
+            new_env = CustomerSupportEnv(task_level=level)
+            new_state = new_env.state()
+            msg = f"Switched globally to {level.upper()} difficulty."
+            return format_ticket_markdown(new_state), msg, "N/A", new_env
 
         # Initial load assignments
         demo.load(load_state, inputs=[env_state], outputs=[ticket_display, status_output, reward_output])
@@ -113,11 +125,17 @@ def create_app():
         escalate_btn.click(lambda e: take_action("escalate", e), inputs=[env_state], outputs=[ticket_display, status_output, reward_output, env_state])
         investigate_btn.click(lambda e: take_action("investigate", e), inputs=[env_state], outputs=[ticket_display, status_output, reward_output, env_state])
         
+        # Difficulty dropdown assignments
+        difficulty_selector.change(
+            fn=change_difficulty,
+            inputs=[difficulty_selector],
+            outputs=[ticket_display, status_output, reward_output, env_state]
+        )
+        
     return demo
 
 gradio_app = create_app()
 
-# Mount Gradio safely at the root. We bypass HF Spaces Gradio internal bugs using Docker SDK.
 app = gr.mount_gradio_app(app, gradio_app, path="/")
 
 if __name__ == "__main__":
