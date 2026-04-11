@@ -1,4 +1,4 @@
-gradio==4.44.1
+gradio>=5.0
 numpy
 pandas
 pyyaml
@@ -6,3 +6,4 @@ openai
 fastapi
 uvicorn
 pydantic
+openenv-core>=0.2.0
